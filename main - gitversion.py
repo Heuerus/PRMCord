@@ -14,7 +14,7 @@ async def on_ready():
     print("-------")
 
 
-db = pymysql.connect(host = "--", user = "--", password = "--", database = "--", port = --)
+db = pymysql.connect(host = "--", user = "--", password = "--", database = "--", port = 3306)
 cursor = db.cursor()
 
 allowed_channel_id = [1211285687714971679,1211307699107536926,1211296263115636766,1215689387342434366,1215802619709362217]
@@ -119,8 +119,8 @@ async def pull(ctx):
             cursor.execute("SELECT div24sp FROM teams WHERE teamname = %s", (player[1]))
             teamdiv_von_player = cursor.fetchone()[0]
             embed = discord.Embed(title=f"{team_name} hat Spieler/Coach gezogen!", color=discord.Colour.blue())
-            value = (f"Spieler: **{player[0]}** \n Team: **{player[1]}** \n Liga: **({teamdiv_von_player})** \n Position: **{player[2]}**")
-            embed.add_field(name="Gezogener Spieler/Coach", value=value)
+            value = (f"Spieler: **{player[0]}** \n Team: **{player[1]}** \n Liga: **({teamdiv_von_player})** \n Position: **{player[2]}**") # Mit modelen wäre es deutlich einfacher zu lesen (z.B. player.ign statt player[0])
+            embed.add_field(name="Gezogener Spieler/Coach", value=value) # Sprechende Namen sind oft besser als Kommentare, daher nicht einfach 2 mal value schreiben
             value = ('Mit "ja" tauschst du gegen deinen aktuellen Spieler auf der Position, mit "b1" oder "b2" gegen deinen Spieler auf der jeweilligen Bankposition, mit "nein", lehnst du ihn ab.')
             embed.add_field(name="Hinzufügen?", value=value)
 
@@ -175,8 +175,8 @@ channel_von_q = []
 @client.command(name="q")
 async def q(ctx):
     user_id = ctx.author.id                                             ## Die discord Id vom user abfragen der in q geht
-    channel_id = ctx.channel.id
-    channel_id = client.get_channel(channel_id)
+    channel_id = ctx.channel.id # Was macht das hier? -> wird doch überschrieben, oder?
+    channel_id = client.get_channel(channel_id) 
     user_name = ctx.author.display_name
 
     if ctx.channel.id not in q_channel:
@@ -250,7 +250,7 @@ async def q(ctx):
         def gleicher_change():
             return 20
 
-
+# Hier wäre es deutlich einfacher wenn man statt my_team_elo und enemy_team_elo einfach gewinner_elo und verlierer_elo nemmen würde
         if gewinner == team1[7]:               ### Wenn der gewinner das erste Team ist
             if my_team_elo > enemy_team_elo:
                 elo_change = kleiner_change()
@@ -268,7 +268,7 @@ async def q(ctx):
         if elo_change <3:
             elo_change = 3
         elif elo_change >30:
-            elo_change = 30
+            elo_change = 30 # Warum Grenze 30 und nicht 29 (gibt ja dann +1 )
 
 
         cursor.execute("UPDATE fantasy SET elo = elo + %s, wins = wins + 1 WHERE fantasyname = %s", (elo_change +1, gewinner,))
@@ -302,7 +302,7 @@ async def q(ctx):
 
         embed.add_field(name="Ergebnis",value=f"Damit gewinnt das Team {gewinner}. Das Team erhält +{elo_change +1} Elo. Der Verlierer {verlierer} verliert {elo_change} Elo.")
         
-        if len(channel_von_q) >= 2:
+        if len(channel_von_q) >= 2: #Was macht das?
             await channel_von_q[1].send(embed=embed)
         await channel_von_q[0].send(embed=embed)
 
@@ -396,7 +396,7 @@ async def team(ctx,team_name=None):
         f"**Assistant/Positional Coach**     {row[8]} ({info_c2[0]}) (Liga {info_c2[1]})"
     )
     embed.add_field(name="Coaches", value=value)
-
+# viel zu umständlich
     if b1 == True and b2 == True:  
         value = (
             f"**Bench 1**      {row[9]} ({info_b1[0]}) (Liga {info_b1[1]}) ({position_b1})\n"
@@ -593,7 +593,7 @@ async def decline(ctx):
 
             break
     
-    
+# Warum ist das hardcoded?    
 anzahl_teams = 401
 
 joined_turnier = set()
@@ -1571,7 +1571,7 @@ async def shop(ctx, anzahl = None):
 
 @commands.check(is_allowed_channel)
 @client.command(name="clan")
-async def shop(ctx, befehl=None,choice=None):
+async def shop(ctx, befehl=None,choice=None): # Falscher Funktionsname
     user_id = ctx.author.id
     print(choice)
     if await hat_team(user_id) is False:
