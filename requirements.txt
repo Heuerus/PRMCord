@@ -1,0 +1,4 @@
+python-dotenv
+cryptography
+discord
+pymysql
