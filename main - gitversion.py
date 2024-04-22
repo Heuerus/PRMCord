@@ -35,14 +35,14 @@ async def help(ctx):
 
 async def is_allowed_channel(ctx):
     if ctx.channel.id not in allowed_channel_id:
-        print("Command im falschen Channel")
+        print("Command im falschen Channel") # Eher logging? oder direkt an User senden?
         return False
     return True
 
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ")
+        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ") # könnte doch auch auf dem offizielen Server auftreten im Sprachchatchat z.B. 
 
 @client.command(name="odds", aliases=["wahrscheinlichkeiten"])
 async def odds(ctx):
@@ -829,10 +829,14 @@ async def randomize_team(ctx):
     db.commit()
     await ctx.send("Deine Spieler und Coaches wurden ausgewählt.")
 
+allowed_users = {
+    284347406420803596, # ?
+    574953391705292801, # ?
+    262646553506873345} # Jan
+
 @client.command(name="refill")
 async def refill(ctx):  
-    user_id = ctx.author.id
-    if user_id == 284347406420803596 or user_id == 574953391705292801:
+    if ctx.author.id in allowed_users:
         cursor.execute("UPDATE fantasy SET pulls = 10")
         db.commit()
         cursor.execute("UPDATE fantasy SET pulls = pulls + 5 ORDER BY elo DESC LIMIT 5")
@@ -842,6 +846,7 @@ async def refill(ctx):
         cursor.execute("UPDATE fantasy SET pulls = pulls + 2 WHERE liga = 3")
         cursor.execute("UPDATE fantasy SET pulls = pulls + 1 WHERE liga = 4")
         db.commit()
+        await ctx.send("Pulls wurden aufgefüllt.")  
     else:
         await ctx.send("Du hast keine Berechtigung dazu")
 
@@ -902,6 +907,7 @@ async def leaderboard(ctx,selection=None):
 
 
 ## returned liste von spielern und coaches
+# müsste returnt im deutschen sein, ist ein cursor eine Liste?
 async def spieler_von_team_name(discord_id):
     cursor.execute("SELECT toplaner,jungler,midlaner,adc,supporter,coach1,coach2,fantasyname FROM fantasy WHERE discord_id = %s", (discord_id,))
     team = cursor.fetchone()
@@ -921,8 +927,8 @@ async def matchup(team1,team2):
     toplane_1_info = cursor.fetchone()   ### 0 ist das Team, 1 ist die Div
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE toplaner = %s", (team2[0]))
     toplane_2_info = cursor.fetchone()
+    #jungle 
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team1[1]))
-    #jungle
     jungle_1_info = cursor.fetchone()   
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team2[1]))
     jungle_2_info = cursor.fetchone()
