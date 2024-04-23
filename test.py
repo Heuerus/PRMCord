@@ -114,14 +114,24 @@ async def matchup(team1,team2):
             value = 1.1
         return value
 
-    def player_value(player_info, headcoach_info, asscoach_info, teambuff, buffed_position, position):
+    def player_value(player_info, position, team, headcoach_info = headcoach_1_info, asscoach_info = asscoach_1_info, teambuff = teambuff1, buffed_position = buffed_position1, mid_jungle = mid_jungle1, duo_bot = duo_bot1):
         value = div_check(player_info[1])
+        if team == 2:
+            headcoach_info = headcoach_2_info
+            asscoach_info = asscoach_2_info
+            teambuff = teambuff2
+            buffed_position = buffed_position2
+            mid_jungle = mid_jungle2
+            duo_bot = duo_bot2
         value = round(value * headcoach_buff(headcoach_info[1]))
         if teambuff == True:
             value = round(value * 1.5)
         if buffed_position == position:
             value = round(value * asscoach_buff(asscoach_info[1]))
-        # mid jungl and adc supp buff
+        if position == "jgl" or position == "mid" and mid_jungle == True:
+            value = round(value * 1.25)
+        if position == "adc" or position == "sup" and duo_bot == True:
+            value = round(value * 1.25)
         return value
 
     def top_value(team):
@@ -239,6 +249,10 @@ async def matchup(team1,team2):
             if buffed_position1 == "sup":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
         return value
+    
+    def compare_pos(pos1, pos2, pos):
+        pool = player_value(pos1, pos, 1) + player_value(pos2, pos, 2)
+        chance = randint(1, pool)
 
 
     pool = top_value(1) + top_value(2)         # top matchup

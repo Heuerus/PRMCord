@@ -5,25 +5,28 @@ from random import randint
 import asyncio
 import settings
 import math
+from dotenv import load_dotenv
+import os
 
 client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+
+load_dotenv()
 
 @client.event
 async def on_ready():
     print("We are ready")
     print("-------")
 
-
-db = pymysql.connect(host = "--", user = "--", password = "--", database = "--", port = 3306)
+db = pymysql.connect(host = os.getenv("DB_host"), user = os.getenv("DB_user"), password = os.getenv("DB_password"), database = os.getenv("DB_database"), port = int(os.getenv("DB_port")))
 cursor = db.cursor()
 
-allowed_channel_id = [1211285687714971679,1211307699107536926,1211296263115636766,1215689387342434366,1215802619709362217]
+allowed_channel_id = [1211285687714971679,1211307699107536926,1211296263115636766,1215689387342434366,1215802619709362217, 714466799860580362]
 
 AceChannel = [1215774155140632618,1215774179144765510,1215774203987361994,1215774294055976970,1215775381588545556,1216782260594937947]
 
 allowed_channel_id = allowed_channel_id + AceChannel
 
-q_channel = [1215689387342434366,1215774179144765510]
+q_channel = [1215689387342434366,1215774179144765510, 714466799860580362]
 
 client.remove_command("help")
 
@@ -35,14 +38,14 @@ async def help(ctx):
 
 async def is_allowed_channel(ctx):
     if ctx.channel.id not in allowed_channel_id:
-        print("Command im falschen Channel") # Eher logging? oder direkt an User senden?
+        print("Command im falschen Channel")
         return False
     return True
 
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ") # könnte doch auch auf dem offizielen Server auftreten im Sprachchatchat z.B. 
+        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ")
 
 @client.command(name="odds", aliases=["wahrscheinlichkeiten"])
 async def odds(ctx):
@@ -119,8 +122,8 @@ async def pull(ctx):
             cursor.execute("SELECT div24sp FROM teams WHERE teamname = %s", (player[1]))
             teamdiv_von_player = cursor.fetchone()[0]
             embed = discord.Embed(title=f"{team_name} hat Spieler/Coach gezogen!", color=discord.Colour.blue())
-            value = (f"Spieler: **{player[0]}** \n Team: **{player[1]}** \n Liga: **({teamdiv_von_player})** \n Position: **{player[2]}**") # Mit modelen wäre es deutlich einfacher zu lesen (z.B. player.ign statt player[0])
-            embed.add_field(name="Gezogener Spieler/Coach", value=value) # Sprechende Namen sind oft besser als Kommentare, daher nicht einfach 2 mal value schreiben
+            value = (f"Spieler: **{player[0]}** \n Team: **{player[1]}** \n Liga: **({teamdiv_von_player})** \n Position: **{player[2]}**")
+            embed.add_field(name="Gezogener Spieler/Coach", value=value)
             value = ('Mit "ja" tauschst du gegen deinen aktuellen Spieler auf der Position, mit "b1" oder "b2" gegen deinen Spieler auf der jeweilligen Bankposition, mit "nein", lehnst du ihn ab.')
             embed.add_field(name="Hinzufügen?", value=value)
 
@@ -175,8 +178,8 @@ channel_von_q = []
 @client.command(name="q")
 async def q(ctx):
     user_id = ctx.author.id                                             ## Die discord Id vom user abfragen der in q geht
-    channel_id = ctx.channel.id # Was macht das hier? -> wird doch überschrieben, oder?
-    channel_id = client.get_channel(channel_id) 
+    channel_id = ctx.channel.id
+    channel_id = client.get_channel(channel_id)
     user_name = ctx.author.display_name
 
     if ctx.channel.id not in q_channel:
@@ -250,7 +253,7 @@ async def q(ctx):
         def gleicher_change():
             return 20
 
-# Hier wäre es deutlich einfacher wenn man statt my_team_elo und enemy_team_elo einfach gewinner_elo und verlierer_elo nemmen würde
+
         if gewinner == team1[7]:               ### Wenn der gewinner das erste Team ist
             if my_team_elo > enemy_team_elo:
                 elo_change = kleiner_change()
@@ -268,7 +271,7 @@ async def q(ctx):
         if elo_change <3:
             elo_change = 3
         elif elo_change >30:
-            elo_change = 30 # Warum Grenze 30 und nicht 29 (gibt ja dann +1 )
+            elo_change = 30
 
 
         cursor.execute("UPDATE fantasy SET elo = elo + %s, wins = wins + 1 WHERE fantasyname = %s", (elo_change +1, gewinner,))
@@ -302,7 +305,7 @@ async def q(ctx):
 
         embed.add_field(name="Ergebnis",value=f"Damit gewinnt das Team {gewinner}. Das Team erhält +{elo_change +1} Elo. Der Verlierer {verlierer} verliert {elo_change} Elo.")
         
-        if len(channel_von_q) >= 2: #Was macht das?
+        if len(channel_von_q) >= 2:
             await channel_von_q[1].send(embed=embed)
         await channel_von_q[0].send(embed=embed)
 
@@ -396,7 +399,7 @@ async def team(ctx,team_name=None):
         f"**Assistant/Positional Coach**     {row[8]} ({info_c2[0]}) (Liga {info_c2[1]})"
     )
     embed.add_field(name="Coaches", value=value)
-# viel zu umständlich
+
     if b1 == True and b2 == True:  
         value = (
             f"**Bench 1**      {row[9]} ({info_b1[0]}) (Liga {info_b1[1]}) ({position_b1})\n"
@@ -593,7 +596,7 @@ async def decline(ctx):
 
             break
     
-# Warum ist das hardcoded?    
+    
 anzahl_teams = 401
 
 joined_turnier = set()
@@ -829,14 +832,10 @@ async def randomize_team(ctx):
     db.commit()
     await ctx.send("Deine Spieler und Coaches wurden ausgewählt.")
 
-allowed_users = {
-    284347406420803596, # ?
-    574953391705292801, # ?
-    262646553506873345} # Jan
-
 @client.command(name="refill")
 async def refill(ctx):  
-    if ctx.author.id in allowed_users:
+    user_id = ctx.author.id
+    if user_id == 284347406420803596 or user_id == 574953391705292801 or user_id == 262646553506873345:
         cursor.execute("UPDATE fantasy SET pulls = 10")
         db.commit()
         cursor.execute("UPDATE fantasy SET pulls = pulls + 5 ORDER BY elo DESC LIMIT 5")
@@ -846,7 +845,6 @@ async def refill(ctx):
         cursor.execute("UPDATE fantasy SET pulls = pulls + 2 WHERE liga = 3")
         cursor.execute("UPDATE fantasy SET pulls = pulls + 1 WHERE liga = 4")
         db.commit()
-        await ctx.send("Pulls wurden aufgefüllt.")  
     else:
         await ctx.send("Du hast keine Berechtigung dazu")
 
@@ -907,7 +905,6 @@ async def leaderboard(ctx,selection=None):
 
 
 ## returned liste von spielern und coaches
-# müsste returnt im deutschen sein, ist ein cursor eine Liste?
 async def spieler_von_team_name(discord_id):
     cursor.execute("SELECT toplaner,jungler,midlaner,adc,supporter,coach1,coach2,fantasyname FROM fantasy WHERE discord_id = %s", (discord_id,))
     team = cursor.fetchone()
@@ -927,8 +924,8 @@ async def matchup(team1,team2):
     toplane_1_info = cursor.fetchone()   ### 0 ist das Team, 1 ist die Div
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE toplaner = %s", (team2[0]))
     toplane_2_info = cursor.fetchone()
-    #jungle 
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team1[1]))
+    #jungle
     jungle_1_info = cursor.fetchone()   
     cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team2[1]))
     jungle_2_info = cursor.fetchone()
@@ -1577,7 +1574,7 @@ async def shop(ctx, anzahl = None):
 
 @commands.check(is_allowed_channel)
 @client.command(name="clan")
-async def shop(ctx, befehl=None,choice=None): # Falscher Funktionsname
+async def shop(ctx, befehl=None,choice=None):
     user_id = ctx.author.id
     print(choice)
     if await hat_team(user_id) is False:
@@ -1864,4 +1861,4 @@ async def promote(ctx, zustand=None):
     await ctx.send("Herzlich Willkommen... Am Anfang?")
 
 
-client.run("--")
+client.run(os.getenv("DC_token"))
