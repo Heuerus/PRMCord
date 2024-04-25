@@ -17,7 +17,6 @@ async def on_ready():
     print("We are ready")
     print("-------")
 
-
 db = pymysql.connect(host = os.getenv("DB_host"), user = os.getenv("DB_user"), password = os.getenv("DB_password"), database = os.getenv("DB_database"), port = int(os.getenv("DB_port")))
 cursor = db.cursor()
 
@@ -58,7 +57,6 @@ async def odds(ctx):
     
     await ctx.send(embed=embed)
 
-
 @client.command()
 async def noice(ctx):
     await ctx.send("Du bist nice")
@@ -76,7 +74,6 @@ async def get_team_info(ctx, team: str,):
     else:
         player_list = ",".join(players)
         await ctx.send(f"Die Spieler in {team} sind: {player_list}")
-
 
 @client.command(name="register")
 @commands.check(is_allowed_channel)
@@ -101,8 +98,7 @@ pulling_users = set()
 @client.command(name="pull")
 async def pull(ctx):
     user_id = ctx.author.id
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if user_id not in pulling_users:
         cursor.execute("SELECT fantasyname,pulls FROM fantasy WHERE discord_id = %s", (user_id,))
@@ -185,8 +181,7 @@ async def q(ctx):
         return
 
     global channel_von_q
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if user_id not in q_users:
         q_users.append(user_id)                                         ## ihn in die q hinzufügen
@@ -286,7 +281,6 @@ async def q(ctx):
     else:
         await ctx.send("Du bist schon in der Warteschlange.")
 
- 
 def generate_random_enemy():
     while True:
         cursor.execute("SELECT discord_id FROM fantasy ORDER BY RAND() LIMIT 1")
@@ -299,8 +293,7 @@ def generate_random_enemy():
 async def team(ctx,team_name=None):
     user_id = ctx.author.id
     if team_name == None:
-        if await hat_team(user_id) == False:
-            await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+        if await hat_team(ctx) == False:
             return
     else:
         cursor.execute("SELECT discord_id FROM fantasy WHERE fantasyname = %s", (team_name,))
@@ -391,8 +384,7 @@ async def team(ctx,team_name=None):
 @client.command(name="rename")
 async def rename(ctx, new_name:str):
     user_id = ctx.author.id
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     cursor.execute("SELECT fantasyname FROM fantasy WHERE discord_id = %s", (user_id,))
     old_name = cursor.fetchone()[0]
@@ -416,12 +408,12 @@ open_trades = {} # ein Dictionary von trades erstellen
 @commands.check(is_allowed_channel)
 @client.command(name="trade")
 async def trade(ctx, input_partner:str, input_position:str):
-    user_id = ctx.author.id
+    user_id = ctx.author.id 
     input_partner = input_partner.lower()
     input_position = input_position.lower()
     cursor.execute("SELECT wins,losses FROM fantasy WHERE discord_id = %s",(user_id,))
-    games = cursor.fetchone()
-    games = games[0] + games[1]
+    games = cursor.fetchone() 
+    games = games[0] + games[1] # überschreiben von vars eigentlich uncool bzw. unklare namen dadurch
     if games < 300:
         await ctx.send("nicht genügend gespielte Spiele.(300)")
         return
@@ -430,13 +422,12 @@ async def trade(ctx, input_partner:str, input_position:str):
     if liga == 2:
         await ctx.send("In dieser Liga kannst du weder den TM, noch trades nutzen.")
         return
-    cursor.execute("SELECT elo FROM fantasy WHERE discord_id = %s",(user_id,))
+    cursor.execute("SELECT elo FROM fantasy WHERE discord_id = %s",(user_id,)) # 3 mal selbe db abgefragt -> wäre es nicht sinnvoller das in eine Abfrage zu packen?
     elo = cursor.fetchone()[0]
     if elo < 50:
-        await ctx.send("Du hast zu wenig Elo um zu traden.")
+        await ctx.send("Du hast zu wenig Elo um zu traden.") 
         return
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False: # warum nicht oben?
         return
     display_name = ctx.author.display_name
     if input_partner is None:
@@ -470,7 +461,7 @@ async def trade(ctx, input_partner:str, input_position:str):
     cursor.execute("SELECT COUNT(*) FROM fantasy WHERE fantasyname = %s", (input_partner,))
     ergebnis = cursor.fetchone()[0]
     if ergebnis >0:
-        partner = input_partner
+        partner = input_partner # Warum? -> unnötig
         cursor.execute(f"SELECT {position} FROM fantasy WHERE discord_id = %s", (user_id,))
         player_1 = cursor.fetchone()
         if player_1[0] == "leer":
@@ -491,7 +482,7 @@ async def trade(ctx, input_partner:str, input_position:str):
     traders.add(int(player_2[1]))                    ## Discord_ids der Beteiligten zum Handelsset zufügen.
     open_trades[(user_id,int(player_2[1]),position)] = None
     await ctx.send(f"{display_name} möchte {player_1[0]} gegen {player_2[0]} vom Team {partner} auf der Position {position} tauschen. \n"
-    "Verwende !accept oder !decline um den Tausch anzunehmen, bzw. abzulehnen. Ein Tausch kostet euch beide 50 Elo.")
+    "Verwende !accept oder !decline um den Tausch anzunehmen, bzw. abzulehnen. Ein Tausch kostet euch beide 50 Elo.") # Hier würde sich doch ein @ anbieten, oder?
 
 @commands.check(is_allowed_channel)
 @client.command(name="accept")
@@ -500,7 +491,7 @@ async def accept(ctx):
     cursor.execute("SELECT wins,losses FROM fantasy WHERE discord_id = %s",(user_id,))
     games = cursor.fetchone()
     games = games[0] + games[1]
-    if games < 300:
+    if games < 300: # logisch würden sich die beiden checks eigentlich beim erstellen schon anbieten -> sonst ggf an 2 verschieden stellen wenn sich was verändert
         await ctx.send("nicht genügend gespielte Spiele.(300)")
         return
     cursor.execute("SELECT liga FROM fantasy WHERE discord_id = %s",(user_id,))
@@ -513,8 +504,7 @@ async def accept(ctx):
     if elo < 50:
         await ctx.send("Du hast zu wenig Elo um zu traden.")
         return
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if user_id not in traders:
         await ctx.send("Du bist nicht in einem Handel involviert.")
@@ -523,7 +513,7 @@ async def accept(ctx):
         if user_id in trade_key:
             position = trade_key[2]
             if user_id == trade_key[1]:  
-                cursor.execute(f"SELECT {trade_key[2]} FROM fantasy WHERE discord_id = %s", (trade_key[0],))
+                cursor.execute(f"SELECT {trade_key[2]} FROM fantasy WHERE discord_id = %s", (trade_key[0],)) # Bei solchen Namen sind Kommentare sinnvoll -> Tradeersteller etc.
                 player_1 = cursor.fetchone()[0]
                 cursor.execute(f"SELECT {trade_key[2]} FROM fantasy WHERE discord_id = %s", (trade_key[1],))
                 player_2 = cursor.fetchone()[0]
@@ -543,13 +533,12 @@ async def accept(ctx):
 @client.command(name="decline")
 async def decline(ctx):
     user_id = ctx.author.id
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if user_id not in traders:
         await ctx.send("Du bist nicht in einem Handel involviert.")
         return
-    for trade_key in open_trades:
+    for trade_key in open_trades: # heißt das die Funktion funktioniert auch als cancel für den Ersteller?
         if user_id in trade_key:
             del open_trades[trade_key]
             traders.remove(trade_key[0])
@@ -558,15 +547,14 @@ async def decline(ctx):
 
             break
     
-# Warum ist das hardcoded?    
+# Warum ist das hardcoded?, es wird nie benutzt  
 anzahl_teams = 401
 
 joined_turnier = set()
 
 async def host(ctx,eintrittspreis):
     user_id = ctx.author.id
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if eintrittspreis is None:                              ### Check ob er einen Preis angegeben hat
         await ctx.send("Bitte gib einen validen Betrag als Eintrittspreis ein")
@@ -602,8 +590,7 @@ async def turnier(ctx, host, aktion):
     if user_id in joined_turnier:
         await ctx.send("Du musst einen Moment warten.")
         return
-    if await hat_team(user_id) == False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) == False:
         return
     if host is None:
         await ctx.send("Du musst einen host angeben")
@@ -751,12 +738,13 @@ async def turnier(ctx, host, aktion):
             joined_turnier.remove(user_id)
             await ctx.send(f"Der Gewinner des Turniers war {gewinner}. Er erhält {gewinn} Elo.")
 
-async def hat_team(user_id):
-    cursor.execute("SELECT COUNT(*) FROM fantasy WHERE discord_id = %s", (user_id))
+async def hat_team(ctx):
+    cursor.execute("SELECT COUNT(*) FROM fantasy WHERE discord_id = %s", (ctx.author.id,))
     count = cursor.fetchone()[0]
     if count >0:
         return True
     else:
+        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
         return False
 
 async def randomize_team(ctx):
@@ -930,13 +918,12 @@ async def patchnotes(ctx):
 @commands.check(is_allowed_channel)
 @client.command(name="assistant")
 async def posten(ctx, position:str = None): # Warum posten?
-    if await hat_team(ctx.author.id) is False: # Sinnvoller diesen Check vor den anderen zu setzen
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    #user_id = ctx.author.id  # Eigentlich unnötig, checkt eh jeder
+    if await hat_team(ctx) is False: # Sinnvoller diesen Check vor den anderen zu setzen
         return
     if position is None:
         await ctx.send("Du musst eine neue Position für deinen Assistant Coach angeben.") # Würde hier ggf sogar erwarten, dass er mir sagt welche Position gerade eingestellt ist
         return
-    #user_id = ctx.author.id  # Eigentlich unnötig, checkt eh jeder
     position = position.lower()
     if position == "toplane" or position == "top":
         new_postion = "top"
@@ -985,8 +972,7 @@ async def search(ctx, player:str = None):
 @client.command(name="swap")
 async def swap(ctx,bench_nr = None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     if bench_nr is None: # Könnte man eigentlich weglassen, da der Check unten eh schon prüft (außer Python bricht dann ab)
         await ctx.send("Bitte gib die Bankposition ein die du tauschen möchtest mit b1 oder b2.")
@@ -1022,10 +1008,10 @@ async def release(ctx,bench_nr = None):
         await ctx.send("Bitte gib die Bank/Transfermarkt-Position ein die du entlassen möchtest mit b1 oder b2 bzw. der TM-Nummer.")
         return
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
-    if bench_nr == "1" or bench_nr == "b1":
+    # generell sollte man b1 und b2 zusammenfassen
+    if bench_nr == "1" or bench_nr == "b1": # gibt es TM 1 und 2? -> dann wäre das nicht eindeutig
         cursor.execute("SELECT bench1 from fantasy WHERE discord_id = %s", (user_id))
         bench_player = cursor.fetchone()[0]
         if bench_player == "leer":
@@ -1052,7 +1038,7 @@ async def release(ctx,bench_nr = None):
         if seller_id is None:
             await ctx.send("Diese ID gibt es nicht auf dem Markt.")
             return
-        seller_id = seller_id[0]
+        seller_id = seller_id[0] # unnötig
         if int(seller_id) == user_id:
             cursor.execute("DELETE FROM market WHERE id = %s",(bench_nr,))
             cursor.execute("UPDATE fantasy SET offers = offers + 1 WHERE discord_id = %s",(user_id,))
@@ -1078,8 +1064,7 @@ async def sell(ctx,bench_nr = None, price = None):
         await ctx.send("Bitte gib ein Zahl als Preis ein.")
         return
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False: # würde ich ganz oben setzen, vielleicht sogar als check umsetzen
         return
     cursor.execute("SELECT wins,losses FROM fantasy WHERE discord_id = %s",(user_id,))
     games = cursor.fetchone()
@@ -1114,8 +1099,7 @@ async def sell(ctx,bench_nr = None, price = None):
 @client.command(name="transfermarkt", aliases=["tm"])
 async def transfermarkt(ctx,start=None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False: # warum brauche ich ein Team um den TM zu sehen?
         return
     cursor.execute("SELECT liga FROM fantasy WHERE discord_id = %s",(user_id,))
     liga = cursor.fetchone()[0]
@@ -1127,7 +1111,7 @@ async def transfermarkt(ctx,start=None):
         start = int(start)
     except:
         await ctx.send("Bitte gib eine Zahl als Seitenangabe an.")
-    if start is None:
+    if start is None: # müsste 4 zeilen weiter oben stehen, sonst wird es bei None oben auch ausgegeben
         start = 1
     embed=discord.Embed(title="Transfermarkt", description="Die Liste von allen Spielern/Coaches die aktuell auf dem Transfermarkt sind.")
 
@@ -1138,21 +1122,20 @@ async def transfermarkt(ctx,start=None):
     end_index = start_index + 20
     print(start_index)
     print(end_index)
-    for eintrag in angebote[start_index:end_index]:
+    for eintrag in angebote[start_index:end_index]: # ggf noch darauf eingehen, wenn man mit start zu weit geht
         cursor.execute("SELECT position FROM players WHERE ign = %s",(eintrag[1]))
         position = cursor.fetchone()[0]
         cursor.execute(f"SELECT teamname,div24sp FROM teams WHERE {position} = %s",(eintrag[1]))
         div_und_name = cursor.fetchone()
-        embed.add_field(name=f"{eintrag[1]}", value=f"Preis: {eintrag[2]},id:{eintrag[0]},position:{position},Liga:{div_und_name[1]},Team:{div_und_name[0]}")        
-    embed.add_field(name="Infor", value="Mit !tm 2 kannst du weitere Seiten des Tms anschauen.")
+        embed.add_field(name=f"{eintrag[1]}", value=f"Preis: {eintrag[2]}, id:{eintrag[0]}, position:{position}, Liga:{div_und_name[1]}, Team:{div_und_name[0]}") # ggf. mehr zeilenumbrüche/Leerzeichen für bessere lesbarkeit + 
+    embed.add_field(name="Infor", value="Mit !tm 2 kannst du weitere Seiten des Tms anschauen.") 
     await ctx.send(embed=embed)
 
 @commands.check(is_allowed_channel)
 @client.command(name="buy", aliases=["kaufen"])
 async def kaufen(ctx,id = None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     cursor.execute("SELECT liga FROM fantasy WHERE discord_id = %s",(user_id,))
     liga = cursor.fetchone()[0]
@@ -1167,7 +1150,7 @@ async def kaufen(ctx,id = None):
     except:
         await ctx.send("Bitte gib eine Zahl als ID ein.")
         return
-    cursor.execute("SELECT wins,losses FROM fantasy WHERE discord_id = %s",(user_id,))
+    cursor.execute("SELECT wins,losses FROM fantasy WHERE discord_id = %s",(user_id,)) # eigentlich könnte man das ganz gut in eine check Funktion packen mit input(anzGames)
     games = cursor.fetchone()
     games = games[0] + games[1]
     if games < 300:
@@ -1182,7 +1165,7 @@ async def kaufen(ctx,id = None):
         return
     cursor.execute("SELECT bench1, bench2 FROM fantasy WHERE discord_id = %s", (user_id,))
     bench = cursor.fetchone()
-    if bench[0] != "leer" and bench[1] != "leer":
+    if bench[0] != "leer" and bench[1] != "leer": # irgendwie bissle schlecht lesbar würde eher if not(bench[0] == "leer" or bench[1] == "leer") machen
         await ctx.send("Du hast kein Platz auf deiner Bank, bitte entlasse erst einen Spieler.")
         return
     cursor.execute("SELECT player_ign FROM market WHERE id = %s",(id,))
@@ -1204,8 +1187,7 @@ async def kaufen(ctx,id = None):
 @client.command(name="cancel")
 async def cancel(ctx,id=None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     if id is None:
         await ctx.send("Bitte gib eine market_id an die du zurücknehmen möchstest.")
@@ -1222,15 +1204,15 @@ async def cancel(ctx,id=None):
         return
     user_id = str(user_id)
     if request[1] != user_id:
-        await ctx.send("Dieser Spieler gehörte nie dir.")
+        await ctx.send("Dieser Spieler gehörte nie dir.") # seltsames wording
         return
     else:
         cursor.execute("SELECT bench1, bench2 FROM fantasy WHERE discord_id = %s", (user_id,))
         bench = cursor.fetchone()
-        if bench[0] != "leer" and bench[1] != "leer":
+        if bench[0] != "leer" and bench[1] != "leer": # selbe Anmerkung wie oben
             await ctx.send("Du hast kein Platz auf deiner Bank, bitte entlasse erst einen Spieler.")
             return
-        if bench[0] != "leer":
+        if bench[0] != "leer": # würde elif nehmen, da es zusammengehört
             cursor.execute("UPDATE fantasy set bench2 = %s WHERE discord_id = %s", (request[0],user_id))
         else:
             cursor.execute("UPDATE fantasy set bench1 = %s  WHERE discord_id = %s", (request[0],user_id))
@@ -1243,8 +1225,7 @@ async def cancel(ctx,id=None):
 @client.command(name="offers")
 async def offers(ctx):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     cursor.execute("SELECT id FROM market WHERE seller_id = %s",(user_id,))
     request = cursor.fetchall()
@@ -1253,7 +1234,7 @@ async def offers(ctx):
         await ctx.send("Du hast keine Spieler auf dem Markt (Lüg nicht!).")
         return
     message = ("")
-    anzahl = (len(request))
+    anzahl = (len(request)) # über for schleife sinnvoller zu lösen -> ggf. ändert sich die anzahl ja später mal
     if anzahl == 3:
         message = message + f"{request[0]}," + f"{request[1]}," + f"{request[2]}"
     elif anzahl == 2:
@@ -1262,13 +1243,11 @@ async def offers(ctx):
         message = message + f"{request[0]}"
     await ctx.send(f"Du hast die Ids: {message} auf dem Markt.")
     
-
 @commands.check(is_allowed_channel)
 @client.command(name="shop")
 async def shop(ctx, anzahl = None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     try:
         anzahl = int(anzahl)
@@ -1279,21 +1258,19 @@ async def shop(ctx, anzahl = None):
     coins = cursor.fetchone()[0]
     preis_requested = anzahl * 2
     if preis_requested > coins:
-        await ctx.send("Das kannst du dir nicht leisten, 1 Pull kostet 2 prm-coins.")
+        await ctx.send("Das kannst du dir nicht leisten, 1 Pull kostet 2 prm-coins.") # finde ich zu teuer
         return
 
     cursor.execute("UPDATE fantasy set pulls = pulls + %s,coins = coins - %s WHERE discord_id = %s",(anzahl,preis_requested,user_id))
     db.commit()
     await ctx.send(f"Du hast {anzahl} pulls für {preis_requested} prm-coins gekauft.")
 
-
 @commands.check(is_allowed_channel)
 @client.command(name="clan")
 async def shop(ctx, befehl=None,choice=None): # Falscher Funktionsname
     user_id = ctx.author.id
     print(choice)
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     if befehl == None:
         await ctx.send("Du kannst ein Clan erstellen mit !clan create, einem beitreten mit !clan join und informationen bekommen mit !clan info")
@@ -1367,16 +1344,14 @@ async def shop(ctx, befehl=None,choice=None): # Falscher Funktionsname
         for team in info:
             message = message + team[0] + ","
         await ctx.send(message)
-
-        
+ 
 @commands.check(is_allowed_channel)
 @client.command(name="legacy")
 async def legacy(ctx, benchnr = None,slot = None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
-    if benchnr is None:
+    if benchnr is None: # glaube das unnötig da else unten
         await ctx.send("Bitte gib eine Banknummer ein die du ins Legacy Roster aufnehmen willst (b1/b2).")
         return
     if benchnr == "b1":
@@ -1389,7 +1364,7 @@ async def legacy(ctx, benchnr = None,slot = None):
     cursor.execute("SELECT liga FROM fantasy WHERE discord_id = %s",(user_id,))
     liga = cursor.fetchone()[0]
     if slot is None:
-        await ctx.send("Bitte gib einen Slot für die Legende ein (1-3).")
+        await ctx.send("Bitte gib einen Slot für die Legende ein (1-3).") # 1-7 mittlerweile?
         return
     elif slot == "1":
         slot = "legacy1"
@@ -1398,7 +1373,7 @@ async def legacy(ctx, benchnr = None,slot = None):
     elif slot == "3":
         slot = "legacy3"
     elif slot == "4":
-        if liga < 5:
+        if liga < 5: # müsste es nicht größer sein?
             slot = "legacy4"    
         else:
             await ctx.send("Deine Liga ist nicht hoch genug für diesen Slot.")
@@ -1433,13 +1408,13 @@ async def legacy(ctx, benchnr = None,slot = None):
 @client.command(name="showroom")
 async def showroom(ctx):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     cursor.execute("SELECT fantasyname,legacy1,legacy2,legacy3,legacy4,legacy5,legacy6,legacy7 FROM fantasy WHERE discord_id = %s",(user_id,))
     team = cursor.fetchone()
     embed = discord.Embed(title=f"Die Legacy von {team[0]}", color=discord.Color.red())
 
+    # Besser wäre es hier eine Schleife zu nutzen, das ist 7 mal der gleiche Code
     if team[1] == "leer":
         value = "Noch keine Legenden gefunden."
     else:
@@ -1488,8 +1463,7 @@ async def showroom(ctx):
 @client.command(name="rotate")
 async def rotate(ctx):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     cursor.execute("SELECT bench1,bench2 FROM fantasy WHERE discord_id = %s",(user_id))
     bench = cursor.fetchone()
@@ -1501,8 +1475,7 @@ async def rotate(ctx):
 @client.command(name="scout")
 async def scout(ctx,player=None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     if player is None:
         await ctx.send("Bitte gib einen Spieler an, nachdem du suchen willst.")
@@ -1520,8 +1493,7 @@ div_1_team = ["Eintracht Spandau","BIG","SK Gaming","Austrian Force","EWI","MOUZ
 @client.command(name="promote")
 async def promote(ctx, zustand=None):
     user_id = ctx.author.id
-    if await hat_team(user_id) is False:
-        await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
+    if await hat_team(ctx) is False:
         return
     cursor.execute("SELECT toplaner, liga FROM fantasy WHERE discord_id = %s",(user_id,))
     toplaner_spieler = cursor.fetchone()
@@ -1540,18 +1512,18 @@ async def promote(ctx, zustand=None):
         if team != team_top:
             await ctx.send("Nicht alle deine Spieler + Headcoach sind aus einem Team.")
             return
-    if team_top not in div_1_team:
+    if team_top not in div_1_team: # eher vor der Schleife zu prüfen
         await ctx.send("Du hast kein volles Liga 1 team.")
         return
     if zustand != "confirm":
-        await ctx.send("Wenn du dir sicher sein willst, dass du dein Team, deine market orders, deine pulls und alles andere verlieren willst um aufzusteigen, drücke !promote confirm.")
+        await ctx.send("Wenn du dir sicher sein willst, dass du dein Team, deine market orders, deine pulls und alles andere verlieren willst um aufzusteigen, drücke !promote confirm.") 
         return
     cursor.execute("SELECT promote1, promote2, promote3 FROM fantasy WHERE discord_id = %s",(user_id,))
     promotes = cursor.fetchone()
     print(promotes)
     if promotes[0] == team_top or promotes[1] == team_top or promotes[2] == team_top:
-        await ctx.send("Du bist mit diesem Team bereits aufgestiegen.")
-        return
+        await ctx.send("Du bist mit diesem Team bereits aufgestiegen.") # eher auch oben zu testen
+        return 
     await randomize_team(ctx)
     cursor.execute("SELECT liga FROM fantasy WHERE discord_id = %s",(user_id,))
     x_promote = cursor.fetchone()[0]
@@ -1569,11 +1541,10 @@ async def promote(ctx, zustand=None):
     elif x_promote == 2:
         cursor.execute("UPDATE fantasy SET promote4 = %s WHERE discord_id = %s",(team_top,user_id))
         db.commit()
-    cursor.execute("UPDATE fantasy SET coins = 0, liga = liga - 1, offers = 3 WHERE discord_id = %s",(user_id,))
+    cursor.execute("UPDATE fantasy SET coins = 0, liga = liga - 1, offers = 3 WHERE discord_id = %s",(user_id,)) # offers als Feld hartcoden ist bisschen arsch, eher als var im code und gegen die anzahl vorhandener offers prüfen
     db.commit()
     cursor.execute("DELETE FROM market WHERE seller_id = %s",(user_id,))
     db.commit()
     await ctx.send("Herzlich Willkommen... Am Anfang?")
-
 
 client.run(os.getenv("DC_token"))
