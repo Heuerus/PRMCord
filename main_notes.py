@@ -28,13 +28,13 @@ allowed_channel_id = allowed_channel_id + AceChannel
 
 q_channel = [1215689387342434366,1215774179144765510, 714466799860580362]
 
-client.remove_command("help")
+#client.remove_command("help")
 
-@client.command(name="help")
-async def help(ctx):
-    embed = discord.Embed(title="Alle Commands", color=discord.Color.blue())
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1195342755610759219/1204485581611081799/info.png?ex=65d4e79c&is=65c2729c&hm=adccc077d4082aff54a603cfc574d2291db7404fa693eb81eba79302aa99a120&")
-    await ctx.send(embed=embed)
+#@client.command(name="help")
+#async def help(ctx):
+#    embed = discord.Embed(title="Alle Commands", color=discord.Color.blue())
+#    embed.set_image(url="https://cdn.discordapp.com/attachments/1195342755610759219/1204485581611081799/info.png?ex=65d4e79c&is=65c2729c&hm=adccc077d4082aff54a603cfc574d2291db7404fa693eb81eba79302aa99a120&")
+#    await ctx.send(embed=embed)
 
 async def is_allowed_channel(ctx):
     if ctx.channel.id not in allowed_channel_id:
@@ -47,7 +47,7 @@ async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
         await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ") # könnte doch auch auf dem offizielen Server auftreten im Sprachchatchat z.B., generell url sinnvoll in einer Variable zu speichern -> config.py, settings.py, .env, etc. 
 
-@client.command(name="odds", aliases=["wahrscheinlichkeiten"])
+@client.command(name="odds", aliases=["wahrscheinlichkeiten"], help="Zeigt alle Wahrscheinlichkeiten")
 async def odds(ctx):
     embed = discord.Embed(title="Alle Wahrscheinlichkeiten", color=discord.Color.blue())
     embed.add_field(name="Stärke von Spielern", value=settings.explain_spieler)
@@ -61,7 +61,7 @@ async def odds(ctx):
 async def noice(ctx):
     await ctx.send("Du bist nice")
 
-@client.command(name="info") # braucht es eigentlich gar nicht da es !team gibt?
+@client.command(name="info") # gibt Esport Team zurück
 async def get_team_info(ctx, team: str,):
     if team is None:
         await ctx.send("Du musst ein Teamnamen in Anführungszeichen angeben!")
@@ -103,9 +103,6 @@ async def pull(ctx):
     if user_id not in pulling_users:
         cursor.execute("SELECT fantasyname,pulls FROM fantasy WHERE discord_id = %s", (user_id,))
         infos_team = cursor.fetchone()
-        if infos_team is None: # Warum wird das hier nochmal gecheckt? -> ist das nicht schon in hat_team() abgedeckt?
-            await ctx.send("Du musst dich erst registrieren mit !register.")
-            return
         anzahl_pulls = infos_team[1]
         team_name = infos_team[0]
         if anzahl_pulls >0:
@@ -172,7 +169,7 @@ channel_von_q = []
 @client.command(name="q")
 async def q(ctx):
     user_id = ctx.author.id                                             ## Die discord Id vom user abfragen der in q geht
-    channel_id = ctx.channel.id # Was macht das hier? -> wird doch überschrieben, oder?
+    channel_id = ctx.channel.id # muss in 2 schritten aufgebaut werden anscheinend
     channel_id = client.get_channel(channel_id) 
     user_name = ctx.author.display_name
 
@@ -263,7 +260,7 @@ async def q(ctx):
                 cursor.execute("UPDATE fantasy SET coins = coins + 3 WHERE fantasyname = %s", (playername,))
                 db.commit()
                 embed.add_field(name="Zusatz",value=f"Außerdem erhält {playername} 3 prm-coins für sein {games}. Game. (1000 Games Benchmark)")
-            elif games % 25 == 0:
+            elif games % 25 == 0: # soll nicht bei 1000 auch ausgeführt werden
                 cursor.execute("UPDATE fantasy SET coins = coins + 1 WHERE fantasyname = %s", (playername,))
                 db.commit()
                 embed.add_field(name="Zusatz",value=f"Außerdem erhält {playername} einen prm-coin für sein {games}. Game. (25 Games Benchmark)")
@@ -461,7 +458,7 @@ async def trade(ctx, input_partner:str, input_position:str):
     cursor.execute("SELECT COUNT(*) FROM fantasy WHERE fantasyname = %s", (input_partner,))
     ergebnis = cursor.fetchone()[0]
     if ergebnis >0:
-        partner = input_partner # Warum? -> unnötig
+        partner = input_partner # -> unnötig
         cursor.execute(f"SELECT {position} FROM fantasy WHERE discord_id = %s", (user_id,))
         player_1 = cursor.fetchone()
         if player_1[0] == "leer":
@@ -530,7 +527,7 @@ async def accept(ctx):
                 await ctx.send("Du kannst nicht dein eigenes Angebot annehmen.")
 
 @commands.check(is_allowed_channel)
-@client.command(name="decline")
+@client.command(name="decline") # alias canceltrade hinzufügen
 async def decline(ctx):
     user_id = ctx.author.id
     if await hat_team(ctx) == False:
@@ -1373,7 +1370,7 @@ async def legacy(ctx, benchnr = None,slot = None):
     elif slot == "3":
         slot = "legacy3"
     elif slot == "4":
-        if liga < 5: # müsste es nicht größer sein?
+        if liga < 5: 
             slot = "legacy4"    
         else:
             await ctx.send("Deine Liga ist nicht hoch genug für diesen Slot.")
@@ -1474,7 +1471,6 @@ async def rotate(ctx):
 @commands.check(is_allowed_channel)
 @client.command(name="scout")
 async def scout(ctx,player=None):
-    user_id = ctx.author.id
     if await hat_team(ctx) is False:
         return
     if player is None:
