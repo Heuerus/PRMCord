@@ -1,7 +1,8 @@
 from random import randint
 
-pool = 10
-chance = randint(1, pool)
-for i in range(1, 10): 
-    chance = randint(1, pool)
-    print(chance)
+test = None
+
+if test == 2:
+    print("Test is 2")
+else:
+    print("Test is not 2")

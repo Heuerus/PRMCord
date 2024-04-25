@@ -205,7 +205,7 @@ async def q(ctx):
             print(team_1, team_2)
             print(q_users)  
         elif len(q_users) == 1:                                     # wenn der user alleine in q ist
-            await asyncio.sleep(30)
+            await asyncio.sleep(3) # aus Testzwecken auf 3 Sekunden gekürzt
             if len(q_users) == 1:
                 team_2 = generate_random_enemy()
                 team_1 = q_users.pop(0)                             # user aus der q werfen
@@ -1051,6 +1051,7 @@ async def matchup(team1,team2):
                 value = round(value * 1.5)
             if buffed_position2 == "top":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
+        print("Team ", team, " Top Value: ", value)
         return value           
 
     def jgl_value(team):
@@ -1075,6 +1076,7 @@ async def matchup(team1,team2):
                 value = round(value * 1.25) 
             if buffed_position1 == "jgl":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
+        print("Team ", team, " Jungle Value: ", value)
         return value    
 
     def mid_value(team):
@@ -1099,6 +1101,7 @@ async def matchup(team1,team2):
                 value = round(value * 1.25)
             if buffed_position1 == "mid":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
+        print("Team ", team, " Mid Value: ", value)
         return value
 
     def adc_value(team):
@@ -1123,6 +1126,7 @@ async def matchup(team1,team2):
                     value = round(value * 1.25)
             if buffed_position1 == "adc":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
+        print("Team ", team, " ADC Value: ", value)
         return value
 
     def sup_value(team):
@@ -1147,6 +1151,7 @@ async def matchup(team1,team2):
                 value = round(value * 1.25)
             if buffed_position1 == "sup":
                 value = round(value * asscoach_buff(asscoach_2_info[1]))
+        print("Team ", team, " Sup Value: ", value)
         return value
 
 

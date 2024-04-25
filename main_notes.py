@@ -46,7 +46,7 @@ async def is_allowed_channel(ctx):
 @client.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CheckFailure):
-        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ") # könnte doch auch auf dem offizielen Server auftreten im Sprachchatchat z.B. 
+        await ctx.send("Bitte benutze den offiziell Server. https://discord.gg/QtEkcCQnRq ") # könnte doch auch auf dem offizielen Server auftreten im Sprachchatchat z.B., generell url sinnvoll in einer Variable zu speichern -> config.py, settings.py, .env, etc. 
 
 @client.command(name="odds", aliases=["wahrscheinlichkeiten"])
 async def odds(ctx):
@@ -63,7 +63,7 @@ async def odds(ctx):
 async def noice(ctx):
     await ctx.send("Du bist nice")
 
-@client.command(name="info")
+@client.command(name="info") # braucht es eigentlich gar nicht da es !team gibt?
 async def get_team_info(ctx, team: str,):
     if team is None:
         await ctx.send("Du musst ein Teamnamen in Anführungszeichen angeben!")
@@ -86,7 +86,7 @@ async def register_user(ctx):
     cursor.execute("SELECT * FROM fantasy WHERE discord_id = %s", (user_id,))
     existing_user = cursor.fetchone()
 
-    if not existing_user:
+    if not existing_user: # Ist es einfacher Code zu lesen in dem keine Verneinung vorkommt? (if existing_user is None) / if existing_user: du bis bereits registriert else: registrieren
         cursor.execute("INSERT INTO fantasy (discord_id) VALUES (%s)", (user_id,))
         await randomize_team(ctx)
         db.commit()
@@ -107,7 +107,7 @@ async def pull(ctx):
     if user_id not in pulling_users:
         cursor.execute("SELECT fantasyname,pulls FROM fantasy WHERE discord_id = %s", (user_id,))
         infos_team = cursor.fetchone()
-        if infos_team is None:
+        if infos_team is None: # Warum wird das hier nochmal gecheckt? -> ist das nicht schon in hat_team() abgedeckt?
             await ctx.send("Du musst dich erst registrieren mit !register.")
             return
         anzahl_pulls = infos_team[1]
@@ -153,17 +153,14 @@ async def pull(ctx):
             elif response.content.lower() == "nein":
                 await ctx.send(f"Du hast den Spieler/Coach nicht in dein Team aufgenommen. Du hast noch {anzahl_pulls} pulls übrig.")
 
-            elif response.content.lower() == "b1":
-                position = "bench1"
-                cursor.execute(f"UPDATE fantasy SET {position} = %s WHERE discord_id = %s", ({player[0]}, user_id))
-                db.commit()
-                await ctx.send("Du hast den Spieler auf Bank1 gesetzt.")
+            elif response.content.lower() == "b1" or response.content.lower() == "b2":
+        
+                position =  response.content.lower()
+                new_position = position[:1] + "ench" + position[1:]
 
-            elif response.content.lower() == "b2":
-                position = "bench2"
-                cursor.execute(f"UPDATE fantasy SET {position} = %s WHERE discord_id = %s", ({player[0]}, user_id))
+                cursor.execute(f"UPDATE fantasy SET {new_position} = %s WHERE discord_id = %s", ({player[0]}, user_id))
                 db.commit()
-                await ctx.send("Du hast den Spieler auf Bank2 gesetzt.")
+                await ctx.send(f"Du hast den Spieler auf Bank {position} gesetzt.")
 
             pulling_users.remove(user_id)
             
@@ -206,7 +203,7 @@ async def q(ctx):
             print(team_1, team_2)
             print(q_users)  
         elif len(q_users) == 1:                                     # wenn der user alleine in q ist
-            await asyncio.sleep(30)
+            await asyncio.sleep(3) # aus testzwecken runtergesetzt
             if len(q_users) == 1:
                 team_2 = generate_random_enemy()
                 team_1 = q_users.pop(0)                             # user aus der q werfen
@@ -217,6 +214,7 @@ async def q(ctx):
         team1 = cursor.fetchone()
         cursor.execute("SELECT toplaner, jungler, midlaner, adc, supporter, coach1, coach2, fantasyname, elo FROM fantasy WHERE discord_id = %s", (team_2,))
         team2 = cursor.fetchone()
+        print(team1, team2)
         if team1 is None:
             print("Fehler in der Q ohne Folge")
             return
@@ -229,7 +227,11 @@ async def q(ctx):
         value = (f"{team2[0]}\n{team2[1]}\n{team2[2]}\n{team2[3]}\n{team2[4]}\n\nCoaches\n{team2[5]}\n{team2[6]}")
         embed.add_field(name=f"{team2[7]}", value=value)
 
+        print("Matchup")
+
         winners = await matchup(team_1,team_2)
+
+        print("Winners", winners)
 
         value = (f"Toplane gewinnt {winners[0]} \nJungle gewinnt {winners[1]} \nMidlane gewinnt {winners[2]} \nAdc gewinnt {winners[3]} \n Support gewinnt {winners[4]}.")
         embed.add_field(name="Winners", value=value)
@@ -400,27 +402,16 @@ async def team(ctx,team_name=None):
         f"**Assistant/Positional Coach**     {row[8]} ({info_c2[0]}) (Liga {info_c2[1]})"
     )
     embed.add_field(name="Coaches", value=value)
-# viel zu umständlich
-    if b1 == True and b2 == True:  
-        value = (
-            f"**Bench 1**      {row[9]} ({info_b1[0]}) (Liga {info_b1[1]}) ({position_b1})\n"
-            f"**Bench 2**     {row[10]} ({info_b2[0]}) (Liga {info_b2[1]}) ({position_b2})"
-        )
-    elif b1 == True and b2 == False:
-        value = (
-            f"**Bench 1**      {row[9]} ({info_b1[0]}) (Liga {info_b1[1]}) ({position_b1})\n"
-            f"**Bench 2**     --leer--"
-        )
-    elif b1 == False and b2 == True:
-        value = (
-            f"**Bench 1**      --leer--\n"
-            f"**Bench 2**     {row[10]} ({info_b2[0]}) (Liga {info_b2[1]}) ({position_b2})"
-        )
-    elif b1 == False and b2 == False:
-        value = (
-            f"**Bench 1**      --leer--\n"
-            f"**Bench 2**     --leer--"
-        )
+
+    if b1 == True:
+        b1string = f"**Bench 1**      {row[9]} ({info_b1[0]}) (Liga {info_b1[1]}) ({position_b1})\n"
+    else:
+        b1string = f"**Bench 1**      --leer--\n"
+    if b2 == True:
+        b2string = f"**Bench 2**     {row[10]} ({info_b2[0]}) (Liga {info_b2[1]}) ({position_b2})"
+    else:
+        b2string = f"**Bench 2**     --leer--"
+    value = b1string + b2string
 
     embed.add_field(name="Bankspieler", value=value)
 
@@ -602,7 +593,6 @@ anzahl_teams = 401
 
 joined_turnier = set()
 
-
 async def host(ctx,eintrittspreis):
     user_id = ctx.author.id
     if await hat_team(user_id) == False:
@@ -636,7 +626,6 @@ async def host(ctx,eintrittspreis):
     cursor.execute("UPDATE fantasy SET elo = elo - %s WHERE discord_id = %s", (eintrittspreis,user_id))
     db.commit()
     await ctx.send(f"Du hast ein Turnier aufgemacht mit einem Eintrittspreis von {eintrittspreis}. Andere Spieler können beitreten mit !turnier (dein name) beitreten.")
-
 
 async def turnier(ctx, host, aktion):
     user_id = ctx.author.id
@@ -833,13 +822,14 @@ async def randomize_team(ctx):
     db.commit()
     await ctx.send("Deine Spieler und Coaches wurden ausgewählt.")
 
-allowed_users = {
-    284347406420803596, # ?
-    574953391705292801, # ?
-    262646553506873345} # Jan
-
 @client.command(name="refill")
 async def refill(ctx):  
+    
+    allowed_users = {
+        284347406420803596, # ?
+        574953391705292801, # ?
+        262646553506873345} # Jan
+    
     if ctx.author.id in allowed_users:
         cursor.execute("UPDATE fantasy SET pulls = 10")
         db.commit()
@@ -854,61 +844,25 @@ async def refill(ctx):
     else:
         await ctx.send("Du hast keine Berechtigung dazu")
 
-
 @client.command(name="leaderboard", aliases=["lb"])
 async def leaderboard(ctx,selection=None):
-    if selection is None:
-        cursor.execute("SELECT fantasyname, elo FROM fantasy ORDER BY elo DESC LIMIT 10")
-        top10 = cursor.fetchall()
-        value = (f"1.{top10[0][0]} hat {top10[0][1]} Elo.\n"
-                f"2.{top10[1][0]} hat {top10[1][1]} Elo.\n"
-                f"3.{top10[2][0]} hat {top10[2][1]} Elo.\n"
-                f"4.{top10[3][0]} hat {top10[3][1]} Elo.\n"
-                f"5.{top10[4][0]} hat {top10[4][1]} Elo.\n"
-                f"6.{top10[5][0]} hat {top10[5][1]} Elo.\n"
-                f"7.{top10[6][0]} hat {top10[6][1]} Elo.\n"
-                f"8.{top10[7][0]} hat {top10[7][1]} Elo.\n"
-                f"9.{top10[8][0]} hat {top10[8][1]} Elo.\n"
-                f"10.{top10[9][0]} hat {top10[9][1]} Elo.\n"
-                )
-        embed=discord.Embed(title="Top 10", description="Ranked by **Elo**", color=discord.Color.blue())
-        embed.add_field(name="Teams und Elo", value=value)
-        await ctx.send(embed=embed)
-    if selection == "wins" or selection == "win":
-        cursor.execute("SELECT fantasyname, wins FROM fantasy ORDER BY wins DESC LIMIT 10")
-        top10 = cursor.fetchall()
-        value = (f"1.{top10[0][0]} hat {top10[0][1]} Wins.\n"
-                f"2.{top10[1][0]} hat {top10[1][1]} Wins.\n"
-                f"3.{top10[2][0]} hat {top10[2][1]} Wins.\n"
-                f"4.{top10[3][0]} hat {top10[3][1]} Wins.\n"
-                f"5.{top10[4][0]} hat {top10[4][1]} Wins.\n"
-                f"6.{top10[5][0]} hat {top10[5][1]} Wins.\n"
-                f"7.{top10[6][0]} hat {top10[6][1]} Wins.\n"
-                f"8.{top10[7][0]} hat {top10[7][1]} Wins.\n"
-                f"9.{top10[8][0]} hat {top10[8][1]} Wins.\n"
-                f"10.{top10[9][0]} hat {top10[9][1]} Wins.\n"
-                )
-        embed=discord.Embed(title="Top 10", description="Ranked by **Wins**", color=discord.Color.blue())
-        embed.add_field(name="Teams und Wins", value=value)
-        await ctx.send(embed=embed)
-    if selection == "worse" or selection == "worst":
-        cursor.execute("SELECT fantasyname,elo FROM fantasy ORDER BY elo ASC LIMIT 10")
-        top10 = cursor.fetchall()
-        value = (f"1.{top10[0][0]} hat {top10[0][1]} Elo.\n"
-                f"2.{top10[1][0]} hat {top10[1][1]} Elo.\n"
-                f"3.{top10[2][0]} hat {top10[2][1]} Elo.\n"
-                f"4.{top10[3][0]} hat {top10[3][1]} Elo.\n"
-                f"5.{top10[4][0]} hat {top10[4][1]} Elo.\n"
-                f"6.{top10[5][0]} hat {top10[5][1]} Elo.\n"
-                f"7.{top10[6][0]} hat {top10[6][1]} Elo.\n"
-                f"8.{top10[7][0]} hat {top10[7][1]} Elo.\n"
-                f"9.{top10[8][0]} hat {top10[8][1]} Elo.\n"
-                f"10.{top10[9][0]} hat {top10[9][1]} Elo.\n"
-                )
-        embed=discord.Embed(title="Worst 10", description="Ranked by **Elo**", color=discord.Color.blue())
-        embed.add_field(name="Teams und Elo", value=value)
-        await ctx.send(embed=embed)
 
+    async def create_Leaderboard(sql, title, type):
+        cursor.execute(sql)
+        top10 = cursor.fetchall()
+        value = ""
+        for i in range(len(top10)):
+            value += f"{i+1}.{top10[i][0]} hat {top10[i][1]} {type}.\n"
+        embed=discord.Embed(title=title, description=f"Ranked by **{type}**", color=discord.Color.blue())
+        embed.add_field(name=f"Teams und {type}", value=value)
+        await ctx.send(embed=embed)
+            
+    if selection is None:
+        await create_Leaderboard("SELECT fantasyname, elo FROM fantasy ORDER BY elo DESC LIMIT 10", "Top 10", "Elo")
+    elif selection == "wins" or selection == "win":
+        await create_Leaderboard("SELECT fantasyname, wins FROM fantasy ORDER BY wins DESC LIMIT 10", "Top 10", "Wins")
+    elif selection == "worse" or selection == "worst":
+        await create_Leaderboard("SELECT fantasyname, elo FROM fantasy ORDER BY elo ASC LIMIT 10", "Worst 10", "Elo")
 
 ## returned liste von spielern und coaches
 # müsste returnt im deutschen sein, ist ein cursor eine Liste?
@@ -921,278 +875,83 @@ async def spieler_von_team_name(discord_id):
 async def matchup(team1,team2):
     winners = []
 
+    print("in matchup")
+
     cursor.execute("SELECT toplaner, jungler, midlaner, adc, supporter, coach1, coach2, fantasyname, elo, buff FROM fantasy WHERE discord_id = %s", (team1,))
     team1 = cursor.fetchone()
     cursor.execute("SELECT toplaner, jungler, midlaner, adc, supporter, coach1, coach2, fantasyname, elo, buff FROM fantasy WHERE discord_id = %s", (team2,))
     team2 = cursor.fetchone()
 
-    #top
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE toplaner = %s", (team1[0]))
-    toplane_1_info = cursor.fetchone()   ### 0 ist das Team, 1 ist die Div
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE toplaner = %s", (team2[0]))
-    toplane_2_info = cursor.fetchone()
-    #jungle 
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team1[1]))
-    jungle_1_info = cursor.fetchone()   
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE jungler = %s", (team2[1]))
-    jungle_2_info = cursor.fetchone()
-    #mid
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE midlaner = %s", (team1[2]))
-    midlane_1_info = cursor.fetchone()   
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE midlaner = %s", (team2[2]))
-    midlane_2_info = cursor.fetchone()
-    #adc
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE adc = %s", (team1[3]))
-    adc_1_info = cursor.fetchone()  
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE adc = %s", (team2[3]))
-    adc_2_info = cursor.fetchone()
-    #sup
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE supporter = %s", (team1[4]))
-    support_1_info = cursor.fetchone()   
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE supporter = %s", (team2[4]))
-    support_2_info = cursor.fetchone()
-    #headcoach
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE headcoach = %s", (team1[5]))
-    headcoach_1_info = cursor.fetchone()  
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE headcoach = %s", (team2[5]))
-    headcoach_2_info = cursor.fetchone()
-    #asscoach
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE asscoach = %s", (team1[6]))
-    asscoach_1_info = cursor.fetchone()  
-    cursor.execute("SELECT teamname,div24sp FROM teams WHERE asscoach = %s", (team2[6]))
-    asscoach_2_info = cursor.fetchone()
+    print("Team1: ", team1)
+    print("Team2: ", team2)
 
-    teambuff1 = False
-    teambuff2 = False
-    mid_jungle1 = False
-    mid_jungle2 = False
-    duo_bot1 = False
-    duo_bot2 = False
+    async def get_pos_info(pos, team):
 
-    #asscoach buff
-    buffed_position1 = team1[9]
-    buffed_position2 = team2[9]
+        cursor.execute(f"SELECT teamname,div24sp FROM teams WHERE {pos} = %s", (team))
+        return cursor.fetchone()
+  
+    #pos info
+    toplane_1_info = await get_pos_info("toplaner", team1[0])
+    print("Top1: ", toplane_1_info)
+    toplane_2_info = await get_pos_info("toplaner", team2[0])
+    jungle_1_info = await get_pos_info("jungler", team1[1])
+    jungle_2_info = await get_pos_info("jungler", team2[1])
+    midlane_1_info = await get_pos_info("midlaner", team1[2])
+    midlane_2_info = await get_pos_info("midlaner", team2[2])
+    adc_1_info = await get_pos_info("adc", team1[3])
+    adc_2_info = await get_pos_info("adc", team2[3])
+    support_1_info = await get_pos_info("supporter", team1[4])
+    support_2_info = await get_pos_info("supporter", team2[4])
+    headcoach_1_info = await get_pos_info("headcoach", team1[5])
+    headcoach_2_info = await get_pos_info("headcoach", team2[5])
+    asscoach_1_info = await get_pos_info("asscoach", team1[6])
+    asscoach_2_info = await get_pos_info("asscoach", team2[6]) 
 
-    #teambuff1
-    team_check = toplane_1_info[0]
-    if jungle_1_info[0] == team_check and midlane_1_info[0] == team_check and adc_1_info[0] == team_check and support_1_info[0] == team_check:
-        teambuff1 = True
-    #teambuff2
-    team_check = toplane_2_info[0]
-    if jungle_2_info[0] == team_check and midlane_2_info[0] == team_check and adc_2_info[0] == team_check and support_2_info[0] == team_check:
-        teambuff2 = True
+
+    def div_check(div, Divisions = { 1 : 160, 2 : 80, 3 : 40, 4 : 20, 5 : 10, 6 : 5, None : 0}):
+        return Divisions[div]
+
+    def headcoach_buff(div, Headcoaches = { 1 : 2.0, 2 : 1.75, 3 : 1.5, 4 : 1.25, 5 : 1.15, 6 : 1.1, None : 0}): 
+        return Headcoaches[div]
     
-    #mid_jungle_duo1
-    if jungle_1_info[0] == midlane_1_info[0]:
-        mid_jungle1 = True
-    #mid_jungle_duo2
-    if jungle_2_info[0] == midlane_2_info[0]:
-         mid_jungle2 = True
+    def asscoach_buff(div, Asscoaches = { 1 : 1.4, 2 : 1.3, 3 : 1.2, 4 : 1.1, None : 0}):
+        return Asscoaches[div]
 
-    #bot_duo1
-    if adc_1_info[0] == support_1_info[0]:
-        duo_bot1 = True
-    #bot_duo2
-    if adc_2_info[0] == support_2_info[0]:
-        duo_bot2 = True
-        
-    def div_check(div):
-        value = 0
-        if div == 1:
-            value = 160
-        elif div == 2:
-            value = 80
-        elif div == 3:
-            value = 40
-        elif div == 4:
-            value = 20
-        elif div == 5:
-            value = 10
-        elif div == 6:
-            value = 5
-        return value
-
-    def headcoach_buff(div):
-        value = 0.0
-        if div == 1:
-            value = 2.0
-        elif div == 2:
-            value = 1.75
-        elif div == 3:
-            value = 1.5
-        elif div == 4:
-            value = 1.25
-        elif div == 5:
-            value = 1.15
-        elif div == 6:
-            value = 1.1
+    #Anmerkung: ich wäre Fan von Floats, Grenzfälle füllen sich hier irgendwie unfair an
+    def player_value_base(player_info, position, buffed_position, headcoach_info, asscoach_info, top_info, jungle_info, mid_info, adc_info, sup_info):
+        value = div_check(player_info[1])
+        value = round(value * headcoach_buff(headcoach_info[1]))
+        if jungle_info[0] == top_info[0] and mid_info[0] == top_info[0] and adc_info[0] == top_info[0] and sup_info[0] == top_info[0]: #team buff
+            value = round(value * 1.5)
+        if buffed_position == position: #asscoach buff
+            value = round(value * asscoach_buff(asscoach_info[1]))
+        if (( position == "jgl" or position == "mid" ) and  jungle_info[0] == mid_info[0]) or (( position == "adc" or position == "sup" ) and adc_info[0] == sup_info[0]): #synergy buffs
+            value = round(value * 1.25)
+        print("Value: ", value)
         return value
     
-    def asscoach_buff(div):
-        value = 0.0
-        if div == 1:
-            value = 1.4
-        if div == 2:
-            value = 1.3
-        elif div == 3:
-            value = 1.2
-        elif div == 4:
-            value = 1.1
-        return value
-
-    def top_value(team):
+    def player_value(player_info, position, team):
+        print("Team: ", team, "Position: ", position, "Playerdiv: ", player_info[1])
         if team == 1:
-            div = toplane_1_info[1]
+            return player_value_base(player_info, position, buffed_position = team1[9], headcoach_info = headcoach_1_info, asscoach_info = asscoach_1_info, top_info = toplane_1_info, jungle_info = jungle_1_info, mid_info = midlane_1_info, adc_info = adc_1_info, sup_info = support_1_info)
         else:
-            div = toplane_2_info[1]
-        value = div_check(div)
-        if team == 1:
-            value = round(value * headcoach_buff(headcoach_1_info[1]))
-            if teambuff1 == True:
-                value = round(value * 1.5)
-            if buffed_position1 == "top":
-                value = round(value * asscoach_buff(asscoach_1_info[1]))
+            return player_value_base(player_info, position, buffed_position = team2[9], headcoach_info = headcoach_2_info, asscoach_info = asscoach_2_info, top_info = toplane_2_info, jungle_info = jungle_2_info, mid_info = midlane_2_info, adc_info = adc_2_info, sup_info = support_2_info)
+    
+    def compare_pos(pos1, pos2, pos):
+        pool = player_value(pos1, pos, 1) + player_value(pos2, pos, 2)
+        chance = randint(1, pool)
+        if chance <= player_value(pos1, pos, 1):
+            winners.append(team1[7])
         else:
-            if teambuff2 == True:
-                round(value * headcoach_buff(headcoach_2_info[1]))
-                value = round(value * 1.5)
-            if buffed_position2 == "top":
-                value = round(value * asscoach_buff(asscoach_2_info[1]))
-        return value           
+            winners.append(team2[7])
 
-    def jgl_value(team):
-        if team == 1:
-            div = jungle_1_info[1]   # Div von jgl holen
-        else:
-            div = jungle_2_info[1]   # Div von jgl holen
-        value = div_check(div)      # Je nach div value geben
-        if team == 1:
-            value = round(value * headcoach_buff(headcoach_1_info[1]))    # coach buff verrechenn
-            if teambuff1 == True:                          # team buff verrechnen
-                value = round(value * 1.5)
-            elif mid_jungle1 == True:                      # synergy buff verrechnen
-                value = round(value * 1.25)
-            if buffed_position1 == "jgl":
-                value = round(value * asscoach_buff(asscoach_1_info[1]))
-        else:
-            value = round(value * headcoach_buff(headcoach_2_info[1]))
-            if teambuff2 == True:
-                value = round(value * 1.5)
-            elif mid_jungle2 == True:
-                value = round(value * 1.25) 
-            if buffed_position1 == "jgl":
-                value = round(value * asscoach_buff(asscoach_2_info[1]))
-        return value    
+    compare_pos(toplane_1_info, toplane_2_info, "top")
+    compare_pos(jungle_1_info, jungle_2_info, "jgl")
+    compare_pos(midlane_1_info, midlane_2_info, "mid")
+    compare_pos(adc_1_info, adc_2_info, "adc")
+    compare_pos(support_1_info, support_2_info, "sup")
 
-    def mid_value(team):
-        if team == 1:
-            div = midlane_1_info[1]
-        else:
-            div = midlane_2_info[1]
-        value = div_check(div)
-        if team == 1:
-            value = round(value * headcoach_buff(headcoach_1_info[1]))
-            if teambuff1 == True:
-                value = round(value * 1.5)
-            elif mid_jungle1 == True:
-                value = round(value * 1.25)
-            if buffed_position1 == "mid":
-                value = round(value * asscoach_buff(asscoach_1_info[1]))
-        else:
-            value = round(value * headcoach_buff(headcoach_2_info[1]))
-            if teambuff2 == True:
-                value = round(value * 1.5)
-            elif mid_jungle2 == True:
-                value = round(value * 1.25)
-            if buffed_position1 == "mid":
-                value = round(value * asscoach_buff(asscoach_2_info[1]))
-        return value
-
-    def adc_value(team):
-        if team == 1:
-            div = adc_1_info[1]
-        else:
-            div = adc_2_info[1]
-        value = div_check(div)
-        if team == 1:
-            value = round(value * headcoach_buff(headcoach_1_info[1]))
-            if teambuff1 == True:
-                value = round(value * 1.5)
-            elif duo_bot1 == True:
-                value = round(value * 1.25)
-            if buffed_position1 == "adc":
-                value = round(value * asscoach_buff(asscoach_1_info[1]))
-        else:
-            value = round(value * headcoach_buff(headcoach_2_info[1]))
-            if teambuff2 == True:
-                value = round(value * 1.5)
-            elif duo_bot2 == True:
-                    value = round(value * 1.25)
-            if buffed_position1 == "adc":
-                value = round(value * asscoach_buff(asscoach_2_info[1]))
-        return value
-
-    def sup_value(team):
-        if team == 1:
-            div = support_1_info[1]
-        else:
-            div = support_2_info[1]
-        value = div_check(div)
-        if team == 1:
-            value = round(value * headcoach_buff(headcoach_1_info[1]))
-            if teambuff1 == True:
-                value = round(value * 1.5)
-            elif duo_bot1 == True:
-                value = round(value * 1.25)
-            if buffed_position1 == "sup":
-                value = round(value * asscoach_buff(asscoach_1_info[1]))
-        else:
-            value = round(value * headcoach_buff(headcoach_2_info[1]))
-            if teambuff2 == True:
-                value = round(value * 1.5)
-            elif duo_bot2 == True:
-                value = round(value * 1.25)
-            if buffed_position1 == "sup":
-                value = round(value * asscoach_buff(asscoach_2_info[1]))
-        return value
-
-
-    pool = top_value(1) + top_value(2)         # top matchup
-    chance = randint(1, pool) 
-    if chance <= top_value(1):
-        winners.append(team1[7])
-    else:
-        winners.append(team2[7])  
-
-    pool = jgl_value(1) + jgl_value(2)
-    chance = randint(1, pool)                   # sup matchup
-    if chance <= jgl_value(1):
-        winners.append(team1[7])
-    else:
-        winners.append(team2[7])  
-
-    pool = mid_value(1) + mid_value(2)
-    chance = randint(1, pool)
-    if chance <= mid_value(1):                  # sup matchup
-        winners.append(team1[7])
-    else:
-        winners.append(team2[7])  
-
-    pool = adc_value(1) + adc_value(2)
-    chance = randint(1, pool)
-    if chance <= adc_value(1):                  # sup matchup
-        winners.append(team1[7])
-    else:
-        winners.append(team2[7])  
-
-    pool = sup_value(1) + sup_value(2)
-    chance = randint(1, pool)                  # sup matchup
-    if chance <= sup_value(1):
-        winners.append(team1[7])
-    else:
-        winners.append(team2[7]) 
     return winners
-
 
 @client.command(name="patchnotes", aliases=["pn"])
 async def patchnotes(ctx):
@@ -1200,14 +959,14 @@ async def patchnotes(ctx):
 
 @commands.check(is_allowed_channel)
 @client.command(name="assistant")
-async def posten(ctx, position:str = None):
-    if position is None:
-        await ctx.send("Du musst eine neue Position für deinen Assistant Coach angeben.")
-        return
-    user_id = ctx.author.id
-    if await hat_team(user_id) is False:
+async def posten(ctx, position:str = None): # Warum posten?
+    if await hat_team(ctx.author.id) is False: # Sinnvoller diesen Check vor den anderen zu setzen
         await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
         return
+    if position is None:
+        await ctx.send("Du musst eine neue Position für deinen Assistant Coach angeben.") # Würde hier ggf sogar erwarten, dass er mir sagt welche Position gerade eingestellt ist
+        return
+    #user_id = ctx.author.id  # Eigentlich unnötig, checkt eh jeder
     position = position.lower()
     if position == "toplane" or position == "top":
         new_postion = "top"
@@ -1222,9 +981,9 @@ async def posten(ctx, position:str = None):
     else:
         await ctx.send("Bitte gib eine valide Position ein.")
         return
-    cursor.execute("UPDATE fantasy SET buff = %s WHERE discord_id = %s",(new_postion, user_id))
+    cursor.execute("UPDATE fantasy SET buff = %s WHERE discord_id = %s",(new_postion, ctx.author.id))
     db.commit()
-    await ctx.send(f"Dein Assistant Coach unterstützt jetzt die {new_postion} Position.")
+    await ctx.send(f"Dein Assistant Coach unterstützt jetzt die {new_postion} Position.") # Deutsch -> top Position oder Position: top
 
 @commands.check(is_allowed_channel)
 @client.command(name="search")
@@ -1232,24 +991,20 @@ async def search(ctx, player:str = None):
     if player is None:
         await ctx.send("Du musst einen Spieler zum Suchen angeben.")
         return
-    user_id = ctx.author.id
     cursor.execute("SELECT position FROM players WHERE ign = %s", (player))                     ### Position des Spielers suchen
     position = cursor.fetchone()
     if position is None:
         await ctx.send("Diesen Spieler gibt es nicht.")
         return
-    position = position[0]                                                                     # Readability verbessern
+    position = position[0] # Readability verbessern
     if position == "headcoach":
         position = "coach1"
     elif position == "asscoach":
         position = "coach2"
     cursor.execute(f"SELECT fantasyname FROM fantasy WHERE {position} = %s",(player))
     teams = cursor.fetchall()
-    if len(teams) == 0:
+    if len(teams) == 0: # or teams is None: glaube nicht, dass teams None sein kann
         await ctx.send("Kein Team besitzt diesen Spieler.")
-        return
-    if teams is None:
-        await ctx.send("Kein Team hat diesen Spieler.")
         return
     nachricht = "Folgende Teams besitzen diesen Spieler:"
     for team in teams:
@@ -1259,50 +1014,34 @@ async def search(ctx, player:str = None):
 @commands.check(is_allowed_channel)
 @client.command(name="swap")
 async def swap(ctx,bench_nr = None):
-    if bench_nr is None:
-        await ctx.send("Bitte gib die Bankposition ein die du tauschen möchtest mit b1 oder b2.")
-        return
     user_id = ctx.author.id
     if await hat_team(user_id) is False:
         await ctx.send("Bitte erstelle zuerst ein Team mit !register.")
         return
+    if bench_nr is None: # Könnte man eigentlich weglassen, da der Check unten eh schon prüft (außer Python bricht dann ab)
+        await ctx.send("Bitte gib die Bankposition ein die du tauschen möchtest mit b1 oder b2.")
+        return
     if bench_nr == "b1" or bench_nr == "1":
-        bench_nr = 1
+        bench_nr = "bench1"
     elif bench_nr == "b2" or bench_nr == "2":
-        bench_nr = 2
+        bench_nr = "bench2"
     else:
         await ctx.send("Bitte gib eine valide Bankposition zum Tauschen an (b1/b2).")
         return
-    if bench_nr == 1:
-        cursor.execute("SELECT bench1 FROM fantasy WHERE discord_id = %s", (user_id,))
-        bench_player = cursor.fetchone()[0]
-        if bench_player == "leer":
-            await ctx.send("Du hast keinen Bankspieler zum Tauschen.")
-            return
-        cursor.execute("SELECT position FROM players WHERE ign = %s", (bench_player))
-        position = cursor.fetchone()[0]
-        if position == "headcoach":
-            position = "coach1"
-        elif position == "asscoach":
-            position = "coach2"
-        cursor.execute(f"SELECT {position} FROM fantasy WHERE discord_id = %s", (user_id,))
-        active_player = cursor.fetchone()[0]
-        cursor.execute(f"UPDATE fantasy SET {position} = %s, bench1 = %s WHERE discord_id = %s", (bench_player, active_player,user_id))
-    elif bench_nr == 2:
-        cursor.execute("SELECT bench2 FROM fantasy WHERE discord_id = %s", (user_id,))
-        bench_player = cursor.fetchone()[0]
-        if bench_player == "leer":
-            await ctx.send("Du hast keinen Bankspieler zum Tauschen.")
-            return
-        cursor.execute("SELECT position FROM players WHERE ign = %s", (bench_player))
-        position = cursor.fetchone()[0]
-        if position == "headcoach":
-            position = "coach1"
-        elif position == "asscoach":
-            position = "coach2"
-        cursor.execute(f"SELECT {position} FROM fantasy WHERE discord_id = %s", (user_id,))
-        active_player = cursor.fetchone()[0]
-        cursor.execute(f"UPDATE fantasy SET {position} = %s, bench2 = %s WHERE discord_id = %s", (bench_player, active_player, user_id))
+    cursor.execute(f"SELECT {bench_nr} FROM fantasy WHERE discord_id = %s", (user_id,))
+    bench_player = cursor.fetchone()[0]
+    if bench_player == "leer":
+        await ctx.send("Du hast keinen Bankspieler zum Tauschen.")
+        return
+    cursor.execute("SELECT position FROM players WHERE ign = %s", (bench_player))
+    position = cursor.fetchone()[0]
+    if position == "headcoach":
+        position = "coach1"
+    elif position == "asscoach":
+        position = "coach2"
+    cursor.execute(f"SELECT {position} FROM fantasy WHERE discord_id = %s", (user_id,))
+    active_player = cursor.fetchone()[0]
+    cursor.execute(f"UPDATE fantasy SET {position} = %s, {bench_nr} = %s WHERE discord_id = %s", (bench_player, active_player,user_id))
     db.commit
     await ctx.send("Spieler wurde gewechselt.")
 
@@ -1353,7 +1092,6 @@ async def release(ctx,bench_nr = None):
         else:
             await ctx.send("Das ist nicht dein Spieler auf dem Markt.")
             return
-
 
 @commands.check(is_allowed_channel)
 @client.command(name="sell", aliases=["verkaufen"])
