@@ -215,23 +215,19 @@ async def q(ctx):
         cursor.execute("SELECT toplaner, jungler, midlaner, adc, supporter, coach1, coach2, fantasyname, elo FROM fantasy WHERE discord_id = %s", (team_2,))
         team2 = cursor.fetchone()
         print(team1, team2)
-        if team1 is None:
+        if team1 is None: # Test Only
             print("Fehler in der Q ohne Folge")
             return
         if team2 is None:
             await ctx.send("Fehler 2")
             return
         embed = discord.Embed(title="Matchup")
-        value = (f"{team1[0]}\n{team1[1]}\n{team1[2]}\n{team1[3]}\n{team1[4]}\n\nCoaches\n{team1[5]}\n{team1[6]}")
+        value = (f"{team1[0]}\n{team1[1]}\n{team1[2]}\n{team1[3]}\n{team1[4]}\n\nCoaches\n{team1[5]}\n{team1[6]}") # Liest sich schlecht + 2 mal quasi das gleiche
         embed.add_field(name=f"{team1[7]}", value=value)
         value = (f"{team2[0]}\n{team2[1]}\n{team2[2]}\n{team2[3]}\n{team2[4]}\n\nCoaches\n{team2[5]}\n{team2[6]}")
         embed.add_field(name=f"{team2[7]}", value=value)
 
-        print("Matchup")
-
-        winners = await matchup(team_1,team_2)
-
-        print("Winners", winners)
+        winners = await matchup(team_1,team_2) # team1 ist ein tuple mit den Infos des ersten Teams, team_1 ist ein int mit der discord_id des ersten Teams -> das ist nicht wirklich gut zu lesen
 
         value = (f"Toplane gewinnt {winners[0]} \nJungle gewinnt {winners[1]} \nMidlane gewinnt {winners[2]} \nAdc gewinnt {winners[3]} \n Support gewinnt {winners[4]}.")
         embed.add_field(name="Winners", value=value)
@@ -240,75 +236,49 @@ async def q(ctx):
 
         if team1_wins >= 3:
             gewinner = team1[7]
-            verlierer = team2[7]
+            verlierer = team2[7]        
+            gewinner_elo = team1[8]
+            verlierer_elo = team2[8]
         else:
             gewinner = team2[7]
             verlierer = team1[7]
+            gewinner_elo = team2[8]
+            verlierer_elo = team1[8]
 
-        
-        my_team_elo = team1[8]
-        enemy_team_elo = team2[8]                                  ##  Konsequenzen
-
-        def kleiner_change():
-            return round(20 - (abs(my_team_elo - enemy_team_elo) / 25))
-        def großer_change():
-            return round(20 + (abs(my_team_elo - enemy_team_elo) / 40))
-        def gleicher_change():
-            return 20
-
-# Hier wäre es deutlich einfacher wenn man statt my_team_elo und enemy_team_elo einfach gewinner_elo und verlierer_elo nemmen würde
-        if gewinner == team1[7]:               ### Wenn der gewinner das erste Team ist
-            if my_team_elo > enemy_team_elo:
-                elo_change = kleiner_change()
-            elif my_team_elo < enemy_team_elo:
-                elo_change = großer_change()
-            else:
-                elo_change = gleicher_change()    
-        else:                                       ### Sonst ist das zweite Team der Gewinner
-            if enemy_team_elo > my_team_elo:
-                elo_change = kleiner_change()
-            elif enemy_team_elo < my_team_elo:
-                elo_change = großer_change()
-            else:
-                elo_change = gleicher_change()
+        if gewinner_elo > verlierer_elo: # kleiner change
+            elo_change = round(20 - (abs(gewinner_elo - verlierer_elo) / 25))
+        elif gewinner_elo < verlierer_elo: # größer change
+            elo_change = round(20 + (abs(gewinner_elo - verlierer_elo) / 40))
+        else: # gleicher change
+            elo_change = 20 
         if elo_change <3:
             elo_change = 3
         elif elo_change >30:
             elo_change = 30 # Warum Grenze 30 und nicht 29 (gibt ja dann +1 )
 
-
         cursor.execute("UPDATE fantasy SET elo = elo + %s, wins = wins + 1 WHERE fantasyname = %s", (elo_change +1, gewinner,))
         cursor.execute("UPDATE fantasy SET elo = elo - %s, losses = losses + 1 WHERE fantasyname = %s", (elo_change, verlierer,))
         db.commit()
-        cursor.execute("SELECT wins,losses FROM fantasy WHERE fantasyname = %s",(gewinner,))
-        games_gewinner = cursor.fetchone()
-        games_gewinner = games_gewinner[0] + games_gewinner[1]
-        cursor.execute("SELECT wins,losses FROM fantasy WHERE fantasyname = %s",(verlierer,))
-        games_verlierer = cursor.fetchone()
-        games_verlierer = games_verlierer[0] + games_verlierer[1]
 
-        if games_verlierer % 25 == 0:                                                                               
-            cursor.execute("UPDATE fantasy SET coins = coins + 1 WHERE fantasyname = %s", (verlierer,))
-            db.commit()
-            embed.add_field(name="Zusatz",value=f"Außerdem erhält {verlierer} einen prm-coin für sein {games_verlierer}. Game. (25 Games)")                 ## Pulls adden wenn 25.Benchmark erreicht
-        if games_verlierer % 1000 == 0:                                                                               
-            cursor.execute("UPDATE fantasy SET coins = coins + 3 WHERE fantasyname = %s", (verlierer,))
-            db.commit()
-            embed.add_field(name="Zusatz",value=f"Außerdem erhält {verlierer} 3 prm-coin für sein {games_verlierer}. Game. (1000 Games)") 
+        def add_gamecount_coins(playername):
+            cursor.execute("SELECT wins,losses FROM fantasy WHERE fantasyname = %s",(playername,))
+            wins_and_losses = cursor.fetchone()
+            games = wins_and_losses[0] + wins_and_losses[1]
+            if games % 1000 == 0:
+                cursor.execute("UPDATE fantasy SET coins = coins + 3 WHERE fantasyname = %s", (playername,))
+                db.commit()
+                embed.add_field(name="Zusatz",value=f"Außerdem erhält {playername} 3 prm-coins für sein {games}. Game. (1000 Games Benchmark)")
+            elif games % 25 == 0:
+                cursor.execute("UPDATE fantasy SET coins = coins + 1 WHERE fantasyname = %s", (playername,))
+                db.commit()
+                embed.add_field(name="Zusatz",value=f"Außerdem erhält {playername} einen prm-coin für sein {games}. Game. (25 Games Benchmark)")
 
-        if games_gewinner % 25 == 0:
-            cursor.execute("UPDATE fantasy SET coins = coins + 1 WHERE fantasyname = %s", (gewinner,))
-            db.commit()
-            embed.add_field(name="Zusatz",value=f"Außerdem erhält {gewinner} einen prm-coin für sein {games_gewinner}. Game. (25 Games Benchmark)")
-        if games_gewinner % 1000 == 0:
-            cursor.execute("UPDATE fantasy SET coins = coins + 3 WHERE fantasyname = %s", (gewinner,))
-            db.commit()
-            embed.add_field(name="Zusatz",value=f"Außerdem erhält {gewinner} 3 prm-coins für sein {games_gewinner}. Game (1000 Games).")
-
+        add_gamecount_coins(gewinner)
+        add_gamecount_coins(verlierer)
 
         embed.add_field(name="Ergebnis",value=f"Damit gewinnt das Team {gewinner}. Das Team erhält +{elo_change +1} Elo. Der Verlierer {verlierer} verliert {elo_change} Elo.")
         
-        if len(channel_von_q) >= 2: #Was macht das?
+        if len(channel_von_q) >= 2: #Was macht das? -> glaube ace q channel damit in beiden channeln das Ergebnis angezeigt wird
             await channel_von_q[1].send(embed=embed)
         await channel_von_q[0].send(embed=embed)
 
